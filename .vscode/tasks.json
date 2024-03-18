@@ -1,0 +1,47 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build",
+            "type": "shell",
+            "command": "Z:/zxenv/emulator/sjasmplus",
+            "args": [
+                "src/main.asm",
+                "--zxnext=cspect",
+                "--msg=war",
+                "--fullpath",
+                "--sym=l2scroller.sym",
+                "--sld=l2scroller.sld",
+                "--lst=l2scroller.lst"
+            ],
+            "problemMatcher": {
+                "fileLocation": [
+                    "relative",
+                    "${workspaceRoot}"
+                ],
+                "pattern": {
+                    "regexp": "^(.*)\\((\\d+)\\):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "severity": 3,
+                    "message": 4
+                }
+            },
+            "group": "build"
+        },
+        {
+            "label": "Build and Launch CSpect",
+            "type": "shell",
+            "command": "cmd.exe",
+            "args": [
+                "/c",
+                "build.bat"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}

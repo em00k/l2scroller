@@ -1,0 +1,815 @@
+# file opened: ./src/main.asm
+  1   0000                      SLDOPT COMMENT WPMEM, LOGPOINT, ASSERTION
+  2   0000                      DEVICE ZXSPECTRUMNEXT
+  3   0000                      CSPECTMAP "l2scroller.map"
+  4   0000
+  5   0000                      org  $8000
+  6   8000
+  7   8000              ;------------------------------------------------------------------------------
+  8   8000              ; Includes
+  9   8000                      include "hardware.inc"
+# file opened: ./src/hardware.inc
+  1+  8000              BIT_UP			equ 4	; 16
+  2+  8000              BIT_DOWN		equ 5	; 32
+  3+  8000              BIT_LEFT		equ 6	; 64
+  4+  8000              BIT_RIGHT		equ 7	; 128
+  5+  8000
+  6+  8000              DIR_NONE		equ %00000000
+  7+  8000              DIR_UP			equ %00010000
+  8+  8000              DIR_DOWN		equ %00100000
+  9+  8000              DIR_LEFT		equ %01000000
+ 10+  8000              DIR_RIGHT		equ %10000000
+ 11+  8000
+ 12+  8000              DIR_UP_I		equ %11101111
+ 13+  8000              DIR_DOWN_I		equ %11011111
+ 14+  8000              DIR_LEFT_I		equ %10111111
+ 15+  8000              DIR_RIGHT_I		equ %01111111
+ 16+  8000
+ 17+  8000              ;-----------------------------------------------------------------------------
+ 18+  8000              ;-- I/O ports - ZX Spectrum classic (48, 128, Timex, Pentagon, ...) ports
+ 19+  8000
+ 20+  8000              ULA_P_FE                        equ $FE     ; BORDER + MIC + BEEP + read Keyboard
+ 21+  8000              TIMEX_P_FF                      equ $FF     ; Timex video control port
+ 22+  8000
+ 23+  8000              ZX128_MEMORY_P_7FFD             equ $7FFD   ; ZX Spectrum 128 ports
+ 24+  8000              ZX128_MEMORY_P_DFFD             equ $DFFD
+ 25+  8000              ZX128P3_MEMORY_P_1FFD           equ $1FFD
+ 26+  8000
+ 27+  8000              AY_REG_P_FFFD                   equ $FFFD
+ 28+  8000              AY_DATA_P_BFFD                  equ $BFFD
+ 29+  8000
+ 30+  8000              Z80_DMA_PORT_DATAGEAR           equ $6B     ; on ZXN the zxnDMA handles this in zxnDMA mode
+ 31+  8000              Z80_DMA_PORT_MB02               equ $0B     ; on ZXN the zxnDMA handles this in Zilog mode
+ 32+  8000
+ 33+  8000              DIVMMC_CONTROL_P_E3             equ $E3
+ 34+  8000              SPI_CS_P_E7                     equ $E7
+ 35+  8000              SPI_DATA_P_EB                   equ $EB
+ 36+  8000
+ 37+  8000              KEMPSTON_MOUSE_X_P_FBDF         equ $FBDF
+ 38+  8000              KEMPSTON_MOUSE_Y_P_FFDF         equ $FFDF
+ 39+  8000              KEMPSTON_MOUSE_B_P_FADF         equ $FADF   ; kempston mouse wheel+buttons
+ 40+  8000
+ 41+  8000              KEMPSTON_JOY1_P_1F              equ $1F
+ 42+  8000              KEMPSTON_JOY2_P_37              equ $37
+ 43+  8000
+ 44+  8000              ;-----------------------------------------------------------------------------
+ 45+  8000              ;-- I/O ports - ZX Spectrum NEXT specific ports
+ 46+  8000
+ 47+  8000              TBBLUE_REGISTER_SELECT_P_243B   equ $243B
+ 48+  8000                  ; -- port $243B = 9275  Read+Write (detection bitmask: %0010_0100_0011_1011)
+ 49+  8000                  ;   -- selects NextREG mapped at port TBBLUE_REGISTER_ACCESS_P_253B
+ 50+  8000
+ 51+  8000              TBBLUE_REGISTER_ACCESS_P_253B   equ $253B
+ 52+  8000                  ; -- port $253B = 9531  Read?+Write? (detection bitmask: %0010_0101_0011_1011)
+ 53+  8000                  ;   -- data for selected NextREG (read/write depends on the register selected)
+ 54+  8000
+ 55+  8000              ; indexes into DAC_CHANNEL_* def-arrays, depending on the type of DAC you want to use
+ 56+  8000              DAC_GS_COVOX_INDEX              equ     1
+ 57+  8000              DAC_PENTAGON_ATM_INDEX          equ     2
+ 58+  8000              DAC_SPECDRUM_INDEX              equ     3
+ 59+  8000              DAC_SOUNDRIVE1_INDEX            equ     4
+ 60+  8000              DAC_SOUNDRIVE2_INDEX            equ     5
+ 61+  8000              DAC_COVOX_INDEX                 equ     6
+ 62+  8000              DAC_PROFI_COVOX_INDEX           equ     7
+ 63+  8000                  ; -- enable 8bit DACs with PERIPHERAL_3_NR_08, use DAC_*_INDEX to access particular set of ports
+ 64+  8000                  ;DEFARRAY    DAC_CHANNEL_A  @@,  @@, $FB, $DF, $1F, $F1,  @@, $3F
+ 65+  8000                  ;DEFARRAY    DAC_CHANNEL_B  @@, $B3,  @@,  @@, $0F, $F3, $0F,  @@
+ 66+  8000                  ;DEFARRAY    DAC_CHANNEL_C  @@, $B3,  @@,  @@, $4F, $F9, $4F,  @@
+ 67+  8000                  ;DEFARRAY    DAC_CHANNEL_D  @@,  @@, $FB, $DF, $5F, $FB,  @@, $5F
+ 68+  8000                  ; -- like for example: ld bc,DAC_CHANNEL_B[DAC_PROFI_COVOX_INDEX]
+ 69+  8000
+ 70+  8000              I2C_SCL_P_103B                  equ $103B   ; i2c bus port (clock) (write only?)
+ 71+  8000              I2C_SDA_P_113B                  equ $113B   ; i2c bus port (data) (read+write)
+ 72+  8000              UART_TX_P_133B                  equ $133B   ; UART tx port (read+write)
+ 73+  8000              UART_RX_P_143B                  equ $143B   ; UART rx port (read+write)
+ 74+  8000              UART_CTRL_P_153B                equ $153B   ; UART control port (read+write)
+ 75+  8000
+ 76+  8000              ZILOG_DMA_P_0B                  equ $0B
+ 77+  8000              ZXN_DMA_P_6B                    equ $6B
+ 78+  8000                  ; -- port $6B = 107 Read+Write (detection bitmask: %xxxx_xxxx_0110_1011)
+ 79+  8000                  ;   - The zxnDMA is mostly compatible with Zilog DMA chip (Z8410) (at least
+ 80+  8000                  ;     as far as old ZX apps are concerned), but has many modifications.
+ 81+  8000                  ;   - core3.1.1 update - Zilog/zxnDMA mode is now selected by port number, not PERIPHERAL_2_NR_06!
+ 82+  8000                  ;   - core3.0 update - (REMOVED) specific behaviour details can be selected (PERIPHERAL_2_NR_06)
+ 83+  8000
+ 84+  8000              LAYER2_ACCESS_P_123B            equ $123B
+ 85+  8000                  ; -- port $123B = 4667 Read+Write (detection bitmask: %0001_0010_0011_1011)
+ 86+  8000                  ;   - see ports.txt or wiki for details (has become a bit more complex over time)
+ 87+  8000
+ 88+  8000              LAYER2_ACCESS_WRITE_OVER_ROM    equ $01     ; map Layer2 bank into ROM area (0000..3FFF) for WRITE-only (reads as ROM)
+ 89+  8000              LAYER2_ACCESS_L2_ENABLED        equ $02     ; enable Layer2 (make banks form nextreg $12 visible)
+ 90+  8000              LAYER2_ACCESS_READ_OVER_ROM     equ $04     ; map Layer2 bank into ROM area (0000..3FFF) for READ-only
+ 91+  8000              LAYER2_ACCESS_SHADOW_OVER_ROM   equ $08     ; bank selected by bits 6-7 is from "shadow Layer 2" banks range (nextreg $13)
+ 92+  8000              LAYER2_ACCESS_BANK_OFFSET       equ $10     ; bit 2-0 is bank offset for current active mapping +0..+7 (other bits are reserved, use 0)
+ 93+  8000              LAYER2_ACCESS_OVER_ROM_BANK_M   equ $C0     ; (mask of) value 0..3 selecting bank mapped for R/W (Nextreg $12 or $13)
+ 94+  8000              LAYER2_ACCESS_OVER_ROM_BANK_0   equ $00     ; screen lines 0..63    (256x192) or columns 0..63    (320x256) or columns 0..127   (640x256)
+ 95+  8000              LAYER2_ACCESS_OVER_ROM_BANK_1   equ $40     ; screen lines 64..127  (256x192) or columns 64..127  (320x256) or columns 128..255 (640x256)
+ 96+  8000              LAYER2_ACCESS_OVER_ROM_BANK_2   equ $80     ; screen lines 128..191 (256x192) or columns 128..191 (320x256) or columns 256..383 (640x256)
+ 97+  8000              LAYER2_ACCESS_OVER_ROM_48K      equ $C0     ; maps all 0..191 lines into $0000..$BFFF region (256x192) or 2/3 of columns in 320x256/640x256
+ 98+  8000
+ 99+  8000              SPRITE_STATUS_SLOT_SELECT_P_303B    equ $303B
+100+  8000                  ; -- port $303B = 12347  Read+Write (detection bitmask: %0011_0000_0011_1011)
+101+  8000                  ;   -- write:
+102+  8000                  ;     - sets both "sprite slot" (0..63) and "pattern slot" (0..63 +128)
+103+  8000                  ;     - once the sprite/pattern slots are set, they act independently and
+104+  8000                  ;     each port ($xx57 and $xx5B) will auto-increment its own slot index
+105+  8000                  ;     (to resync one can write to this port again).
+106+  8000                  ;     - the +128 flag will make the pattern upload start at byte 128 of pattern
+107+  8000                  ;     slot (second half of slot)
+108+  8000                  ;     - The sprite-slot (sprite-attributes) may be optionally interlinked with
+109+  8000                  ;     NextReg $34 (feature controlled by NextReg $34)
+110+  8000                  ;     - auto-increments of slot position from value 63 are officially
+111+  8000                  ;     "undefined behaviour", wrap to 0 is not guaranteed. (only setting slots
+112+  8000                  ;     explicitly back to valid 0..63 will make your code future-proof)
+113+  8000                  ;   -- read (will also reset both collision and max-sprites flags):
+114+  8000                  ;     - bit 1 = maximum sprites per line hit (set when sprite renderer ran
+115+  8000                  ;               out of time when preparing next scanline)
+116+  8000                  ;     - bit 0 = collision flag (set when any sprites draw non-transparent
+117+  8000                  ;               pixel at the same location)
+118+  8000                  ;     Both flags contain values for current scanline already at the beginning
+119+  8000                  ;     of scanline (sprite engine renders one line ahead into buffer and updates
+120+  8000                  ;     flags progressively as it renders the sprites)
+121+  8000              SPRITE_STATUS_MAXIMUM_SPRITES   equ $02
+122+  8000              SPRITE_STATUS_COLLISION         equ $01
+123+  8000              SPRITE_SLOT_SELECT_PATTERN_HALF equ 128     ; add it to 0..63 index to make pattern upload start at second half of pattern
+124+  8000
+125+  8000              SPRITE_ATTRIBUTE_P_57           equ $57
+126+  8000                  ; -- port $xx57 = 87 write-only (detection bitmask: %xxxx_xxxx_0101_0111)
+127+  8000                  ;  - writing 4 or 5 bytes long structures to control particular sprite
+128+  8000                  ;  - after 4/5 bytes block the sprite slot index is auto-incremented
+129+  8000                  ;  - for detailed documentation check official docs or wiki (too long)
+130+  8000
+131+  8000              SPRITE_PATTERN_P_5B             equ $5B
+132+  8000                  ; -- port $xx5B = 91 write-only (detection bitmask: %xxxx_xxxx_0101_1011)
+133+  8000                  ;  - each pattern slot is 256 bytes long = one 16x16 pattern of 8-bit pixels
+134+  8000                  ;    or two 16x16 patterns of 4-bit pixels.
+135+  8000                  ;  - Patterns are uploaded in "English" order (left to right, top to bottom),
+136+  8000                  ;    one byte encodes single pixel in 8 bit mode and two pixels in 4 bit
+137+  8000                  ;    mode (bits 7-4 are "left" pixel, 3-0 are "right" pixel)
+138+  8000                  ;  - pixels are offset (index) into active sprite palette
+139+  8000
+140+  8000              TURBO_SOUND_CONTROL_P_FFFD      equ $FFFD   ; write with bit 7 = 1 (port shared with AY)
+141+  8000
+142+  8000              ;-----------------------------------------------------------------------------
+143+  8000              ;-- NEXT HW Registers (NextReg)
+144+  8000              MACHINE_ID_NR_00                equ $00
+145+  8000              NEXT_VERSION_NR_01              equ $01
+146+  8000              NEXT_RESET_NR_02                equ $02
+147+  8000              MACHINE_TYPE_NR_03              equ $03
+148+  8000              ROM_MAPPING_NR_04               equ $04     ;In config mode, allows RAM to be mapped to ROM area.
+149+  8000              PERIPHERAL_1_NR_05              equ $05     ;Sets joystick mode, video frequency and Scandoubler.
+150+  8000              PERIPHERAL_2_NR_06              equ $06     ;Enables turbo/50Hz/60Hz keys, DivMMC, Multiface and audio (beep/AY)
+151+  8000              TURBO_CONTROL_NR_07             equ $07
+152+  8000              PERIPHERAL_3_NR_08              equ $08     ;ABC/ACB Stereo, Internal Speaker, SpecDrum, Timex Video Modes, Turbo Sound Next, RAM contention and [un]lock 128k paging.
+153+  8000              PERIPHERAL_4_NR_09              equ $09     ;Sets scanlines, AY mono output, Sprite-id lockstep, disables Kempston and divMMC ports.
+154+  8000              PERIPHERAL_5_NR_0A              equ $0A     ;Mouse buttons and DPI settings (core 3.1.5)
+155+  8000              NEXT_VERSION_MINOR_NR_0E        equ $0E
+156+  8000              ANTI_BRICK_NR_10                equ $10
+157+  8000              VIDEO_TIMING_NR_11              equ $11
+158+  8000              LAYER2_RAM_BANK_NR_12           equ $12     ;bank number where visible Layer 2 video memory begins.
+159+  8000              LAYER2_RAM_SHADOW_BANK_NR_13    equ $13     ;bank number for "shadow" write-over-rom mapping
+160+  8000              GLOBAL_TRANSPARENCY_NR_14       equ $14     ;Sets the color treated as transparent for ULA/Layer2/LoRes
+161+  8000              SPRITE_CONTROL_NR_15            equ $15     ;LoRes mode, Sprites configuration, layers priority
+162+  8000                  ; bit 7: enable LoRes mode
+163+  8000                  ; bit 6: sprite rendering (1=sprite 0 on top of other, 0=sprite 0 at bottom)
+164+  8000                  ; bit 5: If 1, the clipping works even in "over border" mode
+165+  8000                  ; 4-2: layers priority: 000=SLU, 001=LSU, 010=SUL, 011=LUS, 100=USL, 101=ULS, 110=S,mix(U+L), 111=S,mix(U+L-5)
+166+  8000                  ; bit 1: enable sprites over border, bit 0: show sprites
+167+  8000              LAYER2_XOFFSET_NR_16            equ $16
+168+  8000              LAYER2_YOFFSET_NR_17            equ $17
+169+  8000              CLIP_LAYER2_NR_18               equ $18
+170+  8000              CLIP_SPRITE_NR_19               equ $19
+171+  8000              CLIP_ULA_LORES_NR_1A            equ $1A
+172+  8000              CLIP_TILEMAP_NR_1B              equ $1B
+173+  8000              CLIP_WINDOW_CONTROL_NR_1C       equ $1C     ;set to 15 to reset all clip-window indices to 0
+174+  8000              VIDEO_LINE_MSB_NR_1E            equ $1E
+175+  8000              VIDEO_LINE_LSB_NR_1F            equ $1F
+176+  8000              VIDEO_INTERUPT_CONTROL_NR_22    equ $22     ;Controls the timing of raster interrupts and the ULA frame interrupt.
+177+  8000              VIDEO_INTERUPT_VALUE_NR_23      equ $23
+178+  8000              ULA_XOFFSET_NR_26               equ $26     ;since core 3.0
+179+  8000              ULA_YOFFSET_NR_27               equ $27     ;since core 3.0
+180+  8000              HIGH_ADRESS_KEYMAP_NR_28        equ $28     ;reads first 8b part of value written to $44 (even unfinished 16b write)
+181+  8000              LOW_ADRESS_KEYMAP_NR_29         equ $29
+182+  8000              HIGH_DATA_TO_KEYMAP_NR_2A       equ $2A
+183+  8000              LOW_DATA_TO_KEYMAP_NR_2B        equ $2B
+184+  8000              DAC_B_MIRROR_NR_2C              equ $2C     ;reads as MSB of Pi I2S left side sample, LSB waits at $2D
+185+  8000              DAC_AD_MIRROR_NR_2D             equ $2D     ;another alias for $2D, reads LSB of value initiated by $2C or $2E read
+186+  8000              SOUNDDRIVE_DF_MIRROR_NR_2D      equ $2D     ;Nextreg port-mirror of port 0xDF
+187+  8000              DAC_C_MIRROR_NR_2E              equ $2E     ;reads as MSB of Pi I2S right side sample, LSB waits at $2D
+188+  8000              TILEMAP_XOFFSET_MSB_NR_2F       equ $2F
+189+  8000              TILEMAP_XOFFSET_LSB_NR_30       equ $30
+190+  8000              TILEMAP_YOFFSET_NR_31           equ $31
+191+  8000              LORES_XOFFSET_NR_32             equ $32
+192+  8000              LORES_YOFFSET_NR_33             equ $33
+193+  8000              SPRITE_ATTR_SLOT_SEL_NR_34      equ $34     ;Sprite-attribute slot index for $35-$39/$75-$79 port $57 mirrors
+194+  8000              SPRITE_ATTR0_NR_35              equ $35     ;port $57 mirror in nextreg space (accessible to copper)
+195+  8000              SPRITE_ATTR1_NR_36              equ $36
+196+  8000              SPRITE_ATTR2_NR_37              equ $37
+197+  8000              SPRITE_ATTR3_NR_38              equ $38
+198+  8000              SPRITE_ATTR4_NR_39              equ $39
+199+  8000              PALETTE_INDEX_NR_40             equ $40     ;Chooses a ULANext palette number to configure.
+200+  8000              PALETTE_VALUE_NR_41             equ $41     ;Used to upload 8-bit colors to the ULANext palette.
+201+  8000              PALETTE_FORMAT_NR_42            equ $42     ;ink-mask for ULANext modes
+202+  8000              PALETTE_CONTROL_NR_43           equ $43     ;Enables or disables ULANext interpretation of attribute values and toggles active palette.
+203+  8000              PALETTE_VALUE_9BIT_NR_44        equ $44     ;Holds the additional blue color bit for RGB333 color selection.
+204+  8000              TRANSPARENCY_FALLBACK_COL_NR_4A equ $4A     ;8-bit colour to be drawn when all layers are transparent
+205+  8000              SPRITE_TRANSPARENCY_I_NR_4B     equ $4B     ;index of transparent colour in sprite palette (only bottom 4 bits for 4-bit patterns)
+206+  8000              TILEMAP_TRANSPARENCY_I_NR_4C    equ $4C     ;index of transparent colour in tilemap graphics (only bottom 4 bits)
+207+  8000              MMU0_0000_NR_50                 equ $50     ;Set a Spectrum RAM page at position 0x0000 to 0x1FFF
+208+  8000              MMU1_2000_NR_51                 equ $51     ;Set a Spectrum RAM page at position 0x2000 to 0x3FFF
+209+  8000              MMU2_4000_NR_52                 equ $52     ;Set a Spectrum RAM page at position 0x4000 to 0x5FFF
+210+  8000              MMU3_6000_NR_53                 equ $53     ;Set a Spectrum RAM page at position 0x6000 to 0x7FFF
+211+  8000              MMU4_8000_NR_54                 equ $54     ;Set a Spectrum RAM page at position 0x8000 to 0x9FFF
+212+  8000              MMU5_A000_NR_55                 equ $55     ;Set a Spectrum RAM page at position 0xA000 to 0xBFFF
+213+  8000              MMU6_C000_NR_56                 equ $56     ;Set a Spectrum RAM page at position 0xC000 to 0xDFFF
+214+  8000              MMU7_E000_NR_57                 equ $57     ;Set a Spectrum RAM page at position 0xE000 to 0xFFFF
+215+  8000              COPPER_DATA_NR_60               equ $60
+216+  8000              COPPER_CONTROL_LO_NR_61         equ $61
+217+  8000              COPPER_CONTROL_HI_NR_62         equ $62
+218+  8000              COPPER_DATA_16B_NR_63           equ $63     ; same as $60, but waits for full 16b before write
+219+  8000              VIDEO_LINE_OFFSET_NR_64         equ $64     ; (core 3.1.5)
+220+  8000              ULA_CONTROL_NR_68               equ $68
+221+  8000              DISPLAY_CONTROL_NR_69           equ $69
+222+  8000              LORES_CONTROL_NR_6A             equ $6A
+223+  8000              TILEMAP_CONTROL_NR_6B           equ $6B
+224+  8000              TILEMAP_DEFAULT_ATTR_NR_6C      equ $6C
+225+  8000              TILEMAP_BASE_ADR_NR_6E          equ $6E     ;Tilemap base address of map
+226+  8000              TILEMAP_GFX_ADR_NR_6F           equ $6F     ;Tilemap definitions (graphics of tiles)
+227+  8000              LAYER2_CONTROL_NR_70            equ $70
+228+  8000              LAYER2_XOFFSET_MSB_NR_71        equ $71     ; for 320x256 and 640x256 L2 modes (core 3.0.6+)
+229+  8000              SPRITE_ATTR0_INC_NR_75          equ $75     ;port $57 mirror in nextreg space (accessible to copper) (slot index++)
+230+  8000              SPRITE_ATTR1_INC_NR_76          equ $76
+231+  8000              SPRITE_ATTR2_INC_NR_77          equ $77
+232+  8000              SPRITE_ATTR3_INC_NR_78          equ $78
+233+  8000              SPRITE_ATTR4_INC_NR_79          equ $79
+234+  8000              USER_STORAGE_0_NR_7F            equ $7F
+235+  8000              EXPANSION_BUS_ENABLE_NR_80      equ $80
+236+  8000              EXPANSION_BUS_CONTROL_NR_81     equ $81
+237+  8000              INTERNAL_PORT_DECODING_0_NR_82  equ $82     ;bits 0-7
+238+  8000              INTERNAL_PORT_DECODING_1_NR_83  equ $83     ;bits 8-15
+239+  8000              INTERNAL_PORT_DECODING_2_NR_84  equ $84     ;bits 16-23
+240+  8000              INTERNAL_PORT_DECODING_3_NR_85  equ $85     ;bits 24-31
+241+  8000              EXPANSION_BUS_DECODING_0_NR_86  equ $86     ;bits 0-7 mask
+242+  8000              EXPANSION_BUS_DECODING_1_NR_87  equ $87     ;bits 8-15 mask
+243+  8000              EXPANSION_BUS_DECODING_2_NR_88  equ $88     ;bits 16-23 mask
+244+  8000              EXPANSION_BUS_DECODING_3_NR_89  equ $89     ;bits 24-31 mask
+245+  8000              EXPANSION_BUS_PROPAGATE_NR_8A   equ $8A     ;Monitoring internal I/O or adding external keyboard
+246+  8000              ALTERNATE_ROM_NR_8C             equ $8C     ;Enable alternate ROM or lock 48k ROM
+247+  8000              ZX_MEM_MAPPING_NR_8E            equ $8E     ;shortcut to set classic zx128+3 memory model at one place
+248+  8000              PI_GPIO_OUT_ENABLE_0_NR_90      equ $90     ;pins 0-7
+249+  8000              PI_GPIO_OUT_ENABLE_1_NR_91      equ $91     ;pins 8-15
+250+  8000              PI_GPIO_OUT_ENABLE_2_NR_92      equ $92     ;pins 16-23
+251+  8000              PI_GPIO_OUT_ENABLE_3_NR_93      equ $93     ;pins 24-27
+252+  8000              PI_GPIO_0_NR_98                 equ $98     ;pins 0-7
+253+  8000              PI_GPIO_1_NR_99                 equ $99     ;pins 8-15
+254+  8000              PI_GPIO_2_NR_9A                 equ $9A     ;pins 16-23
+255+  8000              PI_GPIO_3_NR_9B                 equ $9B     ;pins 24-27
+256+  8000              PI_PERIPHERALS_ENABLE_NR_A0     equ $A0
+257+  8000              PI_I2S_AUDIO_CONTROL_NR_A2      equ $A2
+258+  8000              ;PI_I2S_CLOCK_DIVIDE_NR_A3       equ $A3    ; REMOVED in core 3.1.5 (no more master-mode)
+259+  8000              ESP_WIFI_GPIO_OUTPUT_NR_A8      equ $A8
+260+  8000              ESP_WIFI_GPIO_NR_A9             equ $A9
+261+  8000              EXTENDED_KEYS_0_NR_B0           equ $B0     ;read Next compound keys as standalone keys (outside of zx48 matrix)
+262+  8000              EXTENDED_KEYS_1_NR_B1           equ $B1     ;read Next compound keys as standalone keys (outside of zx48 matrix)
+263+  8000              ;DIVMMC_TRAP_ENABLE_1_NR_B2      equ $B2    ; NOT IMPLEMENTED in core yet (as of 3.1.4), may happen in future
+264+  8000              ;DIVMMC_TRAP_ENABLE_2_NR_B4      equ $B4    ; NOT IMPLEMENTED in core yet (as of 3.1.4), may happen in future
+265+  8000              DEBUG_LED_CONTROL_NR_FF         equ $FF     ;Turns debug LEDs on and off on TBBlue implementations that have them.
+266+  8000
+267+  8000              ;-----------------------------------------------------------------------------
+268+  8000              ;-- common memory addresses
+269+  8000              MEM_ROM_CHARS_3C00              equ $3C00   ; actual chars start at $3D00 with space
+270+  8000              MEM_ZX_SCREEN_4000              equ $4000
+271+  8000              MEM_ZX_ATTRIB_5800              equ $5800
+272+  8000              MEM_LORES0_4000                 equ $4000
+273+  8000              MEM_LORES1_6000                 equ $6000
+274+  8000              MEM_TIMEX_SCR0_4000             equ $4000
+275+  8000              MEM_TIMEX_SCR1_6000             equ $6000
+276+  8000
+277+  8000              ;-----------------------------------------------------------------------------
+278+  8000              ;-- Copper commands
+279+  8000              COPPER_NOOP                     equ %00000000
+280+  8000              COPPER_WAIT_H                   equ %10000000
+281+  8000              COPPER_HALT_B                   equ $FF   ; 2x $FF = wait for (511,63) = infinite wait
+282+  8000
+283+  8000              ;-----------------------------------------------------------------------------
+284+  8000              ; DMA (Register 6)
+285+  8000              DMA_RESET					equ $C3
+286+  8000              DMA_RESET_PORT_A_TIMING		equ $C7
+287+  8000              DMA_RESET_PORT_B_TIMING		equ $CB
+288+  8000              DMA_LOAD					equ $CF
+289+  8000              DMA_CONTINUE				equ $D3
+290+  8000              DMA_DISABLE_INTERUPTS		equ $AF
+291+  8000              DMA_ENABLE_INTERUPTS		equ $AB
+292+  8000              DMA_RESET_DISABLE_INTERUPTS	equ $A3
+293+  8000              DMA_ENABLE_AFTER_RETI		equ $B7
+294+  8000              DMA_READ_STATUS_BYTE		equ $BF
+295+  8000              DMA_REINIT_STATUS_BYTE		equ $8B
+296+  8000              DMA_START_READ_SEQUENCE		equ $A7
+297+  8000              DMA_FORCE_READY				equ $B3
+298+  8000              DMA_DISABLE					equ $83
+299+  8000              DMA_ENABLE					equ $87
+300+  8000              DMA_READ_MASK_FOLLOWS		equ $BB
+301+  8000              KEYB        equ $7F10
+302+  8000              KEYN        equ $7F08
+303+  8000              KEYM        equ $7F04
+304+  8000              KEYSYMBOL   equ $7F02
+305+  8000              KEYSPACE    equ $7F01
+306+  8000              KEYH        equ $BF10
+307+  8000              KEYJ        equ $BF08
+308+  8000              KEYK        equ $BF04
+309+  8000              KEYL        equ $BF02
+310+  8000              KEYENTER    equ $BF01
+311+  8000              KEYY        equ $DF10
+312+  8000              KEYU        equ $DF08
+313+  8000              KEYI        equ $DF04
+314+  8000              KEYO        equ $DF02
+315+  8000              KEYP        equ $DF01
+316+  8000              KEY6        equ $EF10
+317+  8000              KEY7        equ $EF08
+318+  8000              KEY8        equ $EF04
+319+  8000              KEY9        equ $EF02
+320+  8000              KEY0        equ $EF01
+321+  8000              KEY5        equ $F710
+322+  8000              KEY4        equ $F708
+323+  8000              KEY3        equ $F704
+324+  8000              KEY2        equ $F702
+325+  8000              KEY1        equ $F701
+326+  8000              KEYT        equ $FB10
+327+  8000              KEYR        equ $FB08
+328+  8000              KEYE        equ $FB04
+329+  8000              KEYW        equ $FB02
+330+  8000              KEYQ        equ $FB01
+331+  8000              KEYG       equ $FD10
+332+  8000              KEYF       equ $FD08
+333+  8000              KEYD       equ $FD04
+334+  8000              KEYS       equ $FD02
+335+  8000              KEYA       equ $FD01
+336+  8000              KEYV       equ $FE10
+337+  8000              KEYC       equ $FE08
+338+  8000              KEYX       equ $FE04
+339+  8000              KEYZ       equ $FE02
+340+  8000              KEYCAPS    equ $FE01
+# file closed: ./src/hardware.inc
+ 10   8000
+ 11   8000
+ 12   8000              ;------------------------------------------------------------------------------
+ 13   8000              ; Main Program
+ 14   8000
+ 15   8000              main:
+ 16   8000 DD 01                break
+ 17   8002 CD E6 80             call    setup_hardware                          ; set up
+ 18   8005 3E 00                ld      a, 0
+ 19   8007 CD F2 80             call    clsL2
+ 20   800A
+ 21   800A CD 4E 82             call    init_scroller
+ 22   800D
+ 23   800D              scroll_loop:
+ 24   800D CD 5A 82             call    update_scroller
+ 25   8010 CD F0 82             call    wait_vblank
+ 26   8013 C3 0D 80             jp      scroll_loop
+ 27   8016
+ 28   8016
+ 29   8016 3E 04                ld      a,4        ; Set A to green
+ 30   8018 D3 FE                out     ($fe),a    ; Change the border
+ 31   801A 18 FE                jr      $          ; Loop forever!
+ 32   801C
+ 33   801C
+ 34   801C              ;------------------------------------------------------------------------------
+ 35   801C              ; Stack reservation
+ 36   801C              STACK_SIZE      equ     100
+ 37   801C
+ 38   801C              stack_bottom:
+ 39   801C 00 00 00...          defs    STACK_SIZE * 2
+ 40   80E4              stack_top:
+ 41   80E4 00 00                defw    0
+ 42   80E6
+ 43   80E6              ;------------------------------------------------------------------------------
+ 44   80E6              ; Routines
+ 45   80E6
+ 46   80E6              setup_hardware:
+ 47   80E6 ED 91 07 03          nextreg TURBO_CONTROL_NR_07,3
+ 48   80EA ED 91 4A 00          nextreg TRANSPARENCY_FALLBACK_COL_NR_4A,0
+ 49   80EE AF                   xor     a
+ 49   80EF D3 FE          out     ($fe), a
+ 50   80F1
+ 51   80F1 C9                   ret
+ 52   80F2
+ 53   80F2              ;------------------------------------------------------------------------------
+ 54   80F2              ; Includes
+ 55   80F2
+ 56   80F2                      include "layer2.asm"
+# file opened: ./src/layer2.asm
+  1+  80F2              clsL2:
+  2+  80F2              	; Clears L2 320x256 with A as colour
+  3+  80F2              	; IN A > colour
+  4+  80F2              	; USES : hl, de, bc, a
+  5+  80F2
+  6+  80F2 32 0D 81     		ld          (.colour+1), a
+  7+  80F5 3E 12        		ld          a, $12 				; $12 is L2 RAM start bank register
+  8+  80F7 CD E5 82     		call        getRegister 		; get L2 ram bank in a
+  9+  80FA 87           		add         a, a                ; A = start of L2 ram, we need to *2
+ 10+  80FB 06 05        		ld          b, 5                ; 3 blocks to do
+ 11+  80FD
+ 12+  80FD              .L2loop:
+ 13+  80FD C5           		push        bc 					; save loop counter
+ 14+  80FE
+ 15+  80FE ED 92 50     		nextreg     MMU0_0000_NR_50, a  ; set 0 - $1fff
+ 16+  8101 3C           		inc         a
+ 17+  8102 ED 92 51     		nextreg     MMU1_2000_NR_51, a  ; set 0 - $1fff
+ 18+  8105 3C           		inc         a
+ 19+  8106
+ 20+  8106 21 00 00     		ld          hl, 0 				; start at address 0
+ 21+  8109 11 01 00     		ld          de, 1
+ 22+  810C              .colour:
+ 23+  810C 36 14        		ld          (hl), 20            ; smc colour from above
+ 24+  810E 01 FF 3F     		ld          bc, $3fff			; bytes to clear
+ 25+  8111 ED B0        		ldir
+ 26+  8113 C1           		pop         bc 					; bring back loop counter
+ 27+  8114 10 E7        		djnz        .L2loop 			; repeat until b = 0
+ 28+  8116
+ 29+  8116              		; restore ROMS
+ 30+  8116
+ 31+  8116 ED 91 50 FF  		nextreg     MMU0_0000_NR_50, $ff
+ 32+  811A ED 91 51 FF  		nextreg     MMU1_2000_NR_51, $ff
+ 33+  811E
+ 34+  811E              		; clear ULA
+ 35+  811E 21 00 40     		ld          hl, 16384
+ 36+  8121 11 01 40     		ld          de, 16385
+ 37+  8124 01 00 1B     		ld          bc, 6912
+ 38+  8127 36 00        		ld          (hl), 0
+ 39+  8129 ED B0        		ldir
+ 40+  812B
+ 41+  812B C9           		ret
+ 42+  812C
+ 43+  812C
+ 44+  812C              set_clipping:
+ 45+  812C
+ 46+  812C              	; clips ULA to 0,0
+ 47+  812C
+ 48+  812C ED 91 1A 00  		nextreg     CLIP_ULA_LORES_NR_1A, 0
+ 49+  8130 ED 91 1A 00  		nextreg     CLIP_ULA_LORES_NR_1A, 0
+ 50+  8134 ED 91 1A 00  		nextreg     CLIP_ULA_LORES_NR_1A, 0
+ 51+  8138 ED 91 1A 00  		nextreg     CLIP_ULA_LORES_NR_1A, 0
+ 52+  813C
+ 53+  813C
+ 54+  813C ED 91 18 00  		nextreg		CLIP_LAYER2_NR_18, 0
+ 55+  8140 ED 91 18 FF  		nextreg		CLIP_LAYER2_NR_18, 255
+ 56+  8144 ED 91 18 00  		nextreg		CLIP_LAYER2_NR_18, 0
+ 57+  8148 ED 91 18 FF  		nextreg		CLIP_LAYER2_NR_18, 255
+ 58+  814C
+ 59+  814C
+ 60+  814C C9           		ret
+ 61+  814D
+ 62+  814D
+ 63+  814D              gen_palette:
+ 64+  814D
+ 65+  814D              		; A > offset
+ 66+  814D
+ 67+  814D ED 91 52 1C  		nextreg 		$52,28 								; bring in palette to $4000
+ 68+  8151 21 00 40     		ld      		hl, $4000							; point hl to start of palette
+ 69+  8154 ED 31        		add     		hl, a								; hl = @palette+offset
+ 70+  8156 11 89 81     		ld      		de, palette_buffer					; point de to palette
+ 71+  8159 01 00 02     		ld      		bc, 512								;
+ 72+  815C              .uploop1:
+ 73+  815C ED A0        		ldi 												; copy offset to de
+ 74+  815E 23           		inc 			hl 									; move to next colour
+ 75+  815F 78           		ld      		a, b 								; have we done 512 loops?
+ 76+  8160 B1           		or      		c
+ 77+  8161 20 F9        		jr      		nz,.uploop1							; no then jump to uploop1
+ 78+  8163 21 89 81     		ld      		hl,palette_buffer					; point hl to palette_buffer
+ 79+  8166 06 00        		ld      		b,0									; 256 loops
+ 80+  8168 ED 91 43 11  		nextreg 		PALETTE_CONTROL_NR_43, %00010001	; ensure L2 palette is selected
+ 81+  816C ED 91 40 00  		nextreg 		$40,0 								; move to index 0
+ 82+  8170              .uploop:
+ 83+  8170 7E           		ld      		a,(hl)								; get colour
+ 84+  8171 ED 92 44     		nextreg 		$44, a  							; set colout
+ 85+  8174 23           		inc     		hl 									; move to RGB9 Blue bit but ignore
+ 86+  8175 ED 91 44 00  		nextreg 		$44, 0								; 332 RGB mode so set extra bit to 0
+ 87+  8179 23           		inc     		hl 									; move to next colour
+ 88+  817A 10 F4        		djnz    		.uploop								; repeat
+ 89+  817C ED 91 44 00  		nextreg			$44,0								; set first colour to 0
+ 90+  8180 ED 91 44 00  		nextreg			$44,0
+ 91+  8184
+ 92+  8184 ED 91 52 02  		nextreg 		$52,2								; bring back bank 2 to $4000
+ 93+  8188 C9           		ret
+ 94+  8189
+ 95+  8189              palette_buffer:
+ 96+  8189 89 81                dw palette_buffer
+ 97+  818B
+ 98+  818B              pal_cycle:
+ 99+  818B
+100+  818B              	; cycles the colours from hl
+101+  818B
+102+  818B 21 89 81     		ld			hl,palette_buffer
+103+  818E 06 1F        		ld 			b,31									; number of colours to cycle?
+104+  8190
+105+  8190 3E 00        		ld 			a,0										; offset into colour index
+106+  8192
+107+  8192              .loadpal:
+108+  8192
+109+  8192 11 89 81     		ld 			de,palette_buffer						; set de to palette
+110+  8195
+111+  8195 1A           		ld 			a,(de)									; get the first colour
+112+  8196 F5           		push 		af 										; save the value
+113+  8197 21 8A 81     		ld 			hl,palette_buffer+1						; copy palette+1 back 1 space
+114+  819A 11 89 81     		ld 			de,palette_buffer
+115+  819D 01 FE 00     		ld 			bc,254									; do for 255 colours
+116+  81A0 ED B0        		ldir 												;
+117+  81A2 F1           		pop 		af 										; bring back fist colour
+118+  81A3 12           		ld 			(de),a 									; place at end
+119+  81A4 21 89 81     		ld 			hl,palette_buffer								; point hl to updated palette
+120+  81A7
+121+  81A7 06 FF        		ld 			b,255									; 255 loops
+122+  81A9 AF           		xor 		a										; flatten a
+123+  81AA              .palloop:
+124+  81AA
+125+  81AA ED 92 40     		nextreg 	PALETTE_INDEX_NR_40,a					; move palette index to a
+126+  81AD 57           		ld 			d,a 									; save a in d
+127+  81AE 7E           		ld 			a,(hl)									; load first value, send to NextReg
+128+  81AF ED 92 41     		nextreg 	$41,a 									; set the colour
+129+  81B2 23           		inc 		hl 										; increase palette location
+130+  81B3 7A           		ld 			a,d 									; bring back palette index
+131+  81B4 3C           		inc 		a 										; incread palette index
+132+  81B5 10 F3        		djnz 		.palloop								; loop until all colours done
+133+  81B7 C9           		ret
+134+  81B8
+135+  81B8
+136+  81B8
+137+  81B8              LAYER2_ACCESS_PORT 	EQU $123B
+138+  81B8
+139+  81B8              plot_l2:  ; (byVal X as ubyte, byval Y as ubyte, byval T as ubyte)
+140+  81B8                  ; hl = XY , a colour
+141+  81B8
+142+  81B8 01 3B 12             ld   	bc,LAYER2_ACCESS_PORT
+143+  81BB F5                   push    af      ; save colour
+144+  81BC 7C                   ld   	a,h     ; put y into A
+145+  81BD E6 C0                and  	$c0     ; yy00 0000
+146+  81BF
+147+  81BF F6 03                or   	3       ; yy00 0011
+148+  81C1 ED 79                out  	(c),a   ; select 8k-bank
+149+  81C3 7C                   ld   	a,h     ; yyyy yyyy
+150+  81C4 E6 3F                and  	63      ; 00yy yyyy
+151+  81C6 67                   ld   	h,a
+152+  81C7 F1                   pop     af      ; pop back colour
+153+  81C8 77                   ld  	(hl),a   ; set pixel value
+154+  81C9
+155+  81C9 3E 02                ld   	a,2     ; 0000 0010
+156+  81CB                      ;out  	(c),1   ; Layer2 writes off
+157+  81CB C9                   ret
+158+  81CC
+159+  81CC              dotile8:
+160+  81CC                      ; hl yx, a tile
+161+  81CC                      ; first get tile position in RAM
+162+  81CC                      ;
+163+  81CC F5                   push    af
+164+  81CD 16 40        		ld      d,64                    ; each tile is 64
+165+  81CF 5F           		ld      e, a                    ; 11
+166+  81D0 ED 30        		mul     d, e                    ; ?
+167+  81D2
+168+  81D2 3E C0        		ld      a,%11000000
+169+  81D4 B2           		or      d                       ; 8
+170+  81D5 EB           		ex      de,hl                   ; 4
+171+  81D6 67           		ld      h,a                     ; 4
+172+  81D7 7B           		ld      a,e
+173+  81D8 07           		rlca
+174+  81D9 07           		rlca
+175+  81DA 07           		rlca
+176+  81DB 5F           		ld      e,a                     ; 4+4+4+4+4 = 20	; mul x,8
+177+  81DC 7A           		ld      a,d
+178+  81DD 07           		rlca
+179+  81DE 07           		rlca
+180+  81DF 07           		rlca
+181+  81E0
+182+  81E0                      ; e is set, fect L2 address to write to
+183+  81E0                      ;
+184+  81E0 57           		ld      d,a                     ; 4+4+4+4+4 = 20	; mul y,8
+185+  81E1 E6 C0        		and     192
+186+  81E3 F6 03        		or      3                       ; or 3 to keep layer on				; 8
+187+  81E5 01 3B 12     		ld      bc,LAYER2_ACCESS_PORT
+188+  81E8 ED 79        		out     (c),a                   ; 21			; select bank
+189+  81EA
+190+  81EA 7A           		ld      a,d
+191+  81EB E6 3F        		and     63
+192+  81ED 57           		ld      d,a					    ; clear top bits of y (dest) (4+4+4 = 12)
+193+  81EE              		; T96 here
+194+  81EE
+195+  81EE 3E 08        		ld      a,8					    ; 7
+196+  81F0              plotTilesLoop2:
+197+  81F0 D5           		push    de					    ; 11
+198+  81F1 ED A0        		ldi
+199+  81F3 ED A0        		ldi
+200+  81F5 ED A0        		ldi
+201+  81F7 ED A0        		ldi
+202+  81F9 ED A0        		ldi
+203+  81FB ED A0        		ldi
+204+  81FD ED A0        		ldi
+205+  81FF ED A0        		ldi		                        ; 8 * 16 = 128
+206+  8201
+207+  8201 D1           		pop de                          ; 11
+208+  8202 14           		inc d                           ; 4 add 256 for next line down
+209+  8203 3D           		dec a                           ; 4
+210+  8204 20 EA        		jr nz,plotTilesLoop2			; 12/7
+211+  8206 C9           		ret
+212+  8207
+213+  8207
+214+  8207              set_coords:
+215+  8207
+216+  8207 E1                   pop     hl
+216+  8208 CD 0C 82       call set_xy
+216+  820B E9             jp (hl)
+217+  820C 7E           set_xy: ld      a,(hl)       ; X
+218+  820D 32 4B 82             ld      (L2_coords), a
+219+  8210 23                   inc     hl
+220+  8211 7E                   ld      a,(hl)       ; Y
+221+  8212 32 4C 82             ld      (L2_coords+1), a
+222+  8215 23                   inc     hl
+223+  8216 7E                   ld      a,(hl)       ; C
+224+  8217 32 4D 82             ld      (L2_coords+2), a
+225+  821A C9                   ret
+226+  821B
+227+  821B
+228+  821B              L2Line:  ; (byVal Y as ubyte, byval W as ubyte, byval A as ubyte)
+229+  821B                      ; XY from coords, a = width
+230+  821B
+231+  821B F5                   push    af
+232+  821C 01 3B 12     		ld   	bc,LAYER2_ACCESS_PORT
+233+  821F 2A 4B 82             ld      hl, (L2_coords)
+234+  8222 7C           		ld   	a,h     ; put y into A
+235+  8223 E6 C0        		and  	$c0     ; yy00 0000
+236+  8225
+237+  8225 F6 03        		or   	3       ; yy00 0011
+238+  8227 ED 79        		out  	(c),a   ; select 8k-bank
+239+  8229 7C           		ld   	a,h     ; yyyy yyyy
+240+  822A E6 3F        		and  	63      ; 00yy yyyy
+241+  822C 67           		ld   	h,a
+242+  822D C1                   pop     bc
+243+  822E 0E 20                ld      c, 32
+244+  8230              .lineloop2
+245+  8230 06 20                ld      b, 32
+246+  8232 2E 00                ld      l, 0
+247+  8234              .lineloop:
+248+  8234                      ;push    bc
+249+  8234 3A 4D 82     		ld      a, (L2_coords+2)      ; get colour/map value off stack
+250+  8237 77           		ld  	(hl),a   ; set pixel value
+251+  8238 2C                   inc     l
+252+  8239 78                   ld      a, b
+253+  823A B7                   or      a
+254+  823B 20 F7                jr      nz,.lineloop
+255+  823D 24                   inc     h
+256+  823E 0D                   dec     c
+257+  823F 79                   ld      a, c
+258+  8240 B7                   or      a
+259+  8241 20 ED                jr      nz,.lineloop2
+260+  8243
+261+  8243 3E 02        		ld   	a,2     ; 0000 0010
+262+  8245 01 3B 12             ld   	bc,LAYER2_ACCESS_PORT
+263+  8248 ED 79        		out  	(c),a   ; Layer2 writes off
+264+  824A
+265+  824A C9                   ret
+266+  824B
+267+  824B              L2_coords:      ;  X  Y  C
+268+  824B 00 00 00             DB      0 , 0 , 0
+# file closed: ./src/layer2.asm
+ 57   824E                      include "scroller.asm"
+# file opened: ./src/scroller.asm
+  1+  824E              ; scroller routines
+  2+  824E
+  3+  824E              init_scroller:
+  4+  824E
+  5+  824E 21 98 82             ld      hl,scroller_text-1                      ; set to refresh char on first call
+  6+  8251 22 94 82             ld      (scrollupos),hl
+  7+  8254 21 96 82             ld      hl,pixucount                            ; variable to check if new character needed
+  8+  8257 36 01                ld      (hl),1
+  9+  8259 C9                   ret
+ 10+  825A
+ 11+  825A              update_scroller:
+ 12+  825A 21 96 82             ld      hl,pixucount                            ; update pixel count
+ 13+  825D 35                   dec     (hl)
+ 14+  825E 20 0F                jr      nz,scroll_text
+ 15+  8260
+ 16+  8260 21 99 82             ld      hl,scroller_text                        ; loop if necessary
+ 17+  8263 22 94 82             ld      (scrollupos),hl
+ 18+  8266
+ 19+  8266              get_glyph:
+ 20+  8266 5E                   ld      e,(hl)                                  ; collect letter to print in ascii
+ 21+  8267 16 40                ld      d, 64
+ 22+  8269 ED 30                mul     d, e
+ 23+  826B ED 53 98 82          ld      (current_glyph),de
+ 24+  826F
+ 25+  826F                      ; we are now pointing at our char
+ 26+  826F              scroll_text:
+ 27+  826F 3A 97 82             ld      a, (glyph_slice)
+ 28+  8272 83                   add     a, e                                    ; a now vertical slice
+ 29+  8273 5F                   ld      e, a
+ 30+  8274 D5                   push    de                                      ; we need this again in a bit
+ 31+  8275
+ 32+  8275 1A                   ld      a, (de)
+ 33+  8276 CD D2 82             call    get_xy_pos
+ 34+  8279 EB                   ex      de, hl                                  ; hl now source de dest
+ 35+  827A 06 07                ld      b, 7
+ 36+  827C              vertical_copy:
+ 37+  827C ED A0                ldi                                             ; copy one bye
+ 38+  827E D1                   pop     de
+ 39+  827F ED 35 08 00          add     de, 8                                   ; move next line down
+ 40+  8283 24                   inc     h                                       ; this is for 256x192 +h +256
+ 41+  8284 10 F6                djnz    vertical_copy
+ 42+  8286 3A 97 82             ld      a, (glyph_slice)
+ 43+  8289 3C                   inc     a
+ 44+  828A FE 08                cp      8
+ 45+  828C 20 01                jr      nz, not_last_line
+ 46+  828E AF                   xor     a
+ 47+  828F
+ 48+  828F              not_last_line:
+ 49+  828F 32 97 82             ld      (glyph_slice), a
+ 50+  8292 C9                   ret
+ 51+  8293 C9                   ret
+ 52+  8294
+ 53+  8294 00 00        scrollupos:     dw 0
+ 54+  8296 00           pixucount:      db 0
+ 55+  8297 00           glyph_slice:    db 0
+ 56+  8298 00           current_glyph:  db 0
+ 57+  8299
+ 58+  8299              scroller_text:
+ 59+  8299
+ 60+  8299 48 45 4C 4C          db      "HELLO ZX SPECTRUM NEXT FANS "
+ 60+  829D 4F 20 5A 58
+ 60+  82A1 20 53 50 45
+ 60+  82A5 43 54 52 55
+ 60+  82A9 4D 20 4E 45
+ 60+  82AD 58 54 20 46
+ 60+  82B1 41 4E 53 20
+ 61+  82B5 48 45 4C 4C          db      "HELLO ZX SPECTRUM NEXT FANS ",00
+ 61+  82B9 4F 20 5A 58
+ 61+  82BD 20 53 50 45
+ 61+  82C1 43 54 52 55
+ 61+  82C5 4D 20 4E 45
+ 61+  82C9 58 54 20 46
+ 61+  82CD 41 4E 53 20
+ 61+  82D1 00
+ 62+  82D2
+ 63+  82D2              get_xy_pos:
+ 64+  82D2 26 B8                ld      h, 184
+ 65+  82D4 2E F8                ld      l, 248
+ 66+  82D6 01 3B 12             ld   	bc,LAYER2_ACCESS_PORT
+ 67+  82D9 7C                   ld   	a,h     ; put y into A
+ 68+  82DA E6 C0                and  	$c0     ; yy00 0000
+ 69+  82DC
+ 70+  82DC F6 03                or   	3       ; yy00 0011
+ 71+  82DE ED 79                out  	(c),a   ; select 8k-bank
+ 72+  82E0 7C                   ld   	a,h     ; yyyy yyyy
+ 73+  82E1 E6 3F                and  	63      ; 00yy yyyy
+ 74+  82E3 67                   ld   	h,a
+ 75+  82E4 C9                   ret
+# file closed: ./src/scroller.asm
+ 58   82E5                      include "utils.asm"
+# file opened: ./src/utils.asm
+  1+  82E5
+  2+  82E5              ;------------------------------------------------------------------------------
+  3+  82E5              ; Utils
+  4+  82E5
+  5+  82E5              getRegister:
+  6+  82E5
+  7+  82E5              ; IN A > Register to read
+  8+  82E5              ; OUT A < Value of Register
+  9+  82E5
+ 10+  82E5 C5               push    bc                                  ; save BC
+ 11+  82E6 01 3B 24         ld      bc, TBBLUE_REGISTER_SELECT_P_243B
+ 12+  82E9 ED 79            out     (c), a
+ 13+  82EB 04               inc     b
+ 14+  82EC ED 78            in      a, (c)
+ 15+  82EE C1               pop     bc
+ 16+  82EF C9               ret
+ 17+  82F0
+ 18+  82F0
+ 19+  82F0
+ 20+  82F0              ; Vsync wait
+ 21+  82F0
+ 22+  82F0              wait_vblank:
+ 23+  82F0 21 01 00                 ld      hl, 1
+ 24+  82F3              .readline:
+ 25+  82F3 3E 1F        			ld 		a,VIDEO_LINE_LSB_NR_1F
+ 26+  82F5 01 3B 24     			ld 		bc,TBBLUE_REGISTER_SELECT_P_243B
+ 27+  82F8 ED 79        			out 	(c),a
+ 28+  82FA 04           			inc 	b
+ 29+  82FB ED 78        			in 		a,(c)
+ 30+  82FD FE FA        			cp 		250				; line to wait for
+ 31+  82FF 20 F2        			jr 		nz,.readline
+ 32+  8301              			;dec 	hl
+ 33+  8301              			;ld 		a,h
+ 34+  8301              			;or 		l
+ 35+  8301              			;jr 		nz,.readline
+ 36+  8301 C9                       ret
+# file closed: ./src/utils.asm
+ 59   8302
+ 60   8302                      org     $e000
+ 61   E000                      mmu     7 n, 30
+ 62   E000                      incbin  "data/font.nxt"
+ 63   F680
+ 64   F680              ;------------------------------------------------------------------------------
+ 65   F680              ; Output configuration
+ 66   F680                      SAVENEX OPEN "l2scroller.nex", main, stack_top
+ 67   F680                      SAVENEX CORE 2,0,0
+ 68   F680                      SAVENEX CFG 7,0,0,0
+ 69   F680                      SAVENEX AUTO
+ 70   F680                      SAVENEX CLOSE
+# file closed: ./src/main.asm
