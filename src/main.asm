@@ -3,7 +3,7 @@
         CSPECTMAP "l2scroller.map"
 
 ;------------------------------------------------------------------------------
-; Layer2 SCROLLER v1 - Scroller via DMA copy on Layer2
+; Layer2 SCROLLER v2 - Scroller on Layer2 via COPPER & DMA copy
 ; em00k 17.03.24
 
         org  $8000
