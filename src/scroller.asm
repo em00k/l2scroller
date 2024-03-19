@@ -53,10 +53,10 @@ scroll_text:
         ld      l, a                                    ; put back into L
         
         ld      e, 255                                  ; x position to draw pixel line 
-        ld      d, 0
+        ld      d, 192-8
         
         call    get_xy_pos_l2                           ; DE = yx, get position and L2 page in
-        ld      b, 7                                    ; loop 7 times
+        ld      b, 8                                    ; loop 7 times
 
 vertical_copy:
         ld      a, (hl)                                 ; 7 copy one bye
@@ -86,9 +86,9 @@ scroller_text:
 
 scroll_l2_dma:
 
-        nextreg MMU0_0000_NR_50,18
-        ld      hl, 1
-        ld      de, 0
-        ld      bc, 7*256
+        nextreg MMU0_0000_NR_50,22
+        ld      hl, 14337
+        ld      de, 14336
+        ld      bc, 8*256
         call    TransferDMA
         ret 

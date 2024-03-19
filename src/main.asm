@@ -22,37 +22,70 @@ main:
         ld      a, 0 
         call    clsL2
 
-        ld      de, $3050 
-        ld      ix, snake_emk_logo 
-        call    snake_plot
-        ld      de, $6050 
-        ld      ix, snake_emk_logo 
-        call    snake_plot
+        ld      de, $0000 
+        ld      ix, snake_test_logo_128 
+        call    straight_plot
+         
+        ld      de, $00c0
+        ld      ix, snake_test_logo 
+        call    straight_plot
 
+        ld      de, $0080 
+        ld      ix, snake_test_logo 
+        call    straight_plot
 
+        ld      de, $8000 
+        ld      ix, snake_test_logo 
+        call    straight_plot
+
+        ld      de, $80c0 
+        ld      ix, snake_test_logo 
+        call    straight_plot
+
+        ;ld      de, $0000
+        ;ld      ix, snake_test_logo_256 
+        ;call    straight_plot
+
+        call    StartCopper
         call    init_scroller                           ; initialise the scroller
 
 scroll_loop: 
+
         ld a,2 : out     ($fe), a 
         call    scroll_l2_dma                           ; copies 8x256 pixels of L2 with the DMA
         ld a,3 : out     ($fe), a 
         call    update_scroller                         ; update the scroller
         ld a,7 : out     ($fe), a         
-        ld      de, $6050 
-        ld      ix, snake_emk_logo 
-        call    snake_plot
+        ld      de, $1050 
+        ;ld      ix, snake_test_logo 
+        ;call    straight_plot
+        ;call    snake_plot
         ld a,0 : out     ($fe), a 
-        call    wait_vblank                             ; wait for vblank
-        ld a,0 : out     ($fe), a 
+        call    wait_vblank   
         jp      scroll_loop                             ; repeatsville
 
 
 snake_emk_logo:
         ;       bank wdith height 
         ;       offset 
-        db      32, 96, 32>>1
+        db      33, 96, 32
+        dw      2
+snake_test_logo:
+        ;       bank wdith height 
+        ;       offset 
+        db      33, 64, 64
+        dw      3072
+snake_test_logo_128:
+        ;       bank wdith height 
+        ;       offset 
+        db      34, 128, 128
         dw      0
 
+snake_test_logo_256:
+        ;       bank wdith height 
+        ;       offset 
+        db      36, 0, 191
+        dw      0
 ;------------------------------------------------------------------------------
 ; Routines
 
@@ -101,6 +134,19 @@ stack_top:
         org     $e000
         mmu     7 n, 32
         incbin  "data/emk1.snk"                        ; background 
+        incbin  "data/ZXNEXT_64x64.snk"                        ; background 
+        org     $e000
+        mmu     7 n, 33
+        incbin  "data/emk1.raw"                        ; background 
+        incbin  "data/ZXNEXT_64x64.raw" 
+        org     $e000                      
+        mmu     7 n, 34
+        incbin  "data/ZXNEXT_128x128.raw"                        ; background 
+        org     $e000     
+
+        mmu     7 n, 36
+        incbin  "data/ZX NEXT_256x192.raw"                        ; background 
+              
 
 ;------------------------------------------------------------------------------
 ; Output configuration

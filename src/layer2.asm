@@ -164,6 +164,8 @@ snake_plot:
         ; hl now position an mapped in 
         ld      l, (ix+3)
         ld      h, (ix+4) 
+        inc     hl 
+        inc     hl 
         ;ex      de, hl                      ; hl now snake_data, de = destination on l2
         ld      a, (ix+2)                   ; height 
 .line1: ld      c, (ix+1)                   ; width 
@@ -192,6 +194,56 @@ snake_plot:
 
         ld      a, d 
         cp      $40
-        ret     nz
-        call    get_xy_pos_l2
+        call    z, get_xy_pos_l2
+        cp      $80
+        call    z, 1F
         ret 
+1:      call    get_xy_pos_l2
+        ret
+
+straight_plot:
+; de = yx, ix = source_data
+        ; break
+        ld      a, (ix+0)
+        nextreg $50, a
+        inc     a
+        nextreg $51, a 
+        ld      l, (ix+3)       ; source 
+        ld      h, (ix+4)
+        inc hl
+        inc hl
+        ld      b, (ix+2)       ; height
+        ld      (.add1+1), de   ; save address 
+.add1:
+        ld      de, 0000
+.line1:  
+        call    get_xy_pos_l2
+        push    bc
+        ld      b, 0 
+        ld      c,(ix+1)        ; width
+        ldir 
+        ld      a, h 
+        cp      $40
+        call    z,.nextbanks
+        pop     bc 
+        ld      de, (.add1+1)
+        inc     d
+        ld      (.add1+1), de 
+        dec     b
+        jr      nz, .line1
+        ld      bc, LAYER2_ACCESS_PORT
+        ld      a, 2 
+        out     (c), a 
+        ret 
+.nextbanks
+        ld      a, (ix+0)
+        add     a, a
+        add     a, a
+        nextreg $50, a
+        inc     a
+        nextreg $51,a 
+        ld      a, h 
+        and     127
+        ld      a, h 
+        
+        ret
