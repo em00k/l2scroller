@@ -27,13 +27,13 @@ stop_copper:
 update_copper:
         
 		
-		ld      a, (init_copper.layer2_xoffset-1)
-        inc     a   
-        
-        ld      (init_copper.layer2_xoffset-1),a
+		ld		a, (init_copper.layer2_xoffset-1)
+		inc     a   
+		
+		ld      (init_copper.layer2_xoffset-1),a
 
 		call    init_copper
-        ret 
+		ret 
 .xpos: 
         db      0
 
