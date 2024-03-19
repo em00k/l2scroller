@@ -4,7 +4,7 @@
   3   0000                      CSPECTMAP "l2scroller.map"
   4   0000
   5   0000              ;------------------------------------------------------------------------------
-  6   0000              ; Layer2 SCROLLER v1 - Scroller via DMA copy on Layer2
+  6   0000              ; Layer2 SCROLLER v2 - Scroller on Layer2 via COPPER & DMA copy
   7   0000              ; em00k 17.03.24
   8   0000
   9   0000                      org  $8000
