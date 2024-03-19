@@ -25,7 +25,7 @@ wait_vblank:
 		out 	(c),a
 		inc 	b
 		in 		a,(c)
-		cp 		170								; line to wait for 250
+		cp 		192								; line to wait for 250
 		jr 		nz,.readline
 		;dec 	hl 
 		;ld 		a,h

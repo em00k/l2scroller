@@ -1,9 +1,10 @@
-COPPER_HORIZONTAL_OFFSET 	= 0
-;===========================================================================
-; hl = copper list
-; bc = length
-;===========================================================================
-StartCopper
+;------------------------------------------------------------------------------
+; copper routines
+
+start_copper:
+		; hl = copper list
+		; bc = length
+
 		nextreg COPPER_CONTROL_HI_NR_62, 0	; stop
 		nextreg COPPER_CONTROL_LO_NR_61, 0
 
@@ -17,13 +18,22 @@ StartCopper
 		nextreg COPPER_CONTROL_HI_NR_62, %11000000 ; start
 		nextreg COPPER_CONTROL_LO_NR_61, %00000000
 		ret
-;===========================================================================
-;
-;===========================================================================
-StopCopper
+
+stop_copper:
 		nextreg COPPER_CONTROL_HI_NR_62, 0	; stop
 		nextreg COPPER_CONTROL_LO_NR_61, 0
 		ret
-;===========================================================================
-;
-;===========================================================================
+
+update_copper:
+        
+		
+		ld      a, (init_copper.layer2_xoffset-1)
+        inc     a   
+        
+        ld      (init_copper.layer2_xoffset-1),a
+
+		call    init_copper
+        ret 
+.xpos: 
+        db      0
+

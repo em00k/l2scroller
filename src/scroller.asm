@@ -1,17 +1,22 @@
-; scroller routines 
+;------------------------------------------------------------------------------
+; scroller routines
 
 init_scroller: 
-
+        
+        ; initialises the scroller 
+        
         ld      hl,scroller_text-1                      ; set to refresh char on first call
         ld      (txt_position),hl
-        ld      hl,char_count                           ; check for new char 
+        ld      hl,glyph_slice                          ; check for new char 
         ld      (hl),1
         ret
 
 update_scroller:
+        
+        ; updates the scroller 
 
         nextreg $50, 30                                 ; page in font 
-        ld      hl,char_count                           ; update pixel count
+        ld      hl,glyph_slice                          ; update pixel count
         dec     (hl)
         jr      nz,scroll_text
 
@@ -23,8 +28,6 @@ new_char:
         ld      a,(hl)                                  ; check for loop token
         or      a
         jr      nz,get_new_glyp                
-
-loop_msg:
 
         ld      hl,scroller_text                        ; loop if necessary
         ld      (txt_position),hl
@@ -46,17 +49,17 @@ get_new_glyp:
 scroll_text: 
 
         ld      hl, tempcahar                           ; point to buffer
-        ld      a, (char_count)                         ; which slice of the letter are we printing
-        neg                                             ; char_count counts down 8>0, we need 0-8
+        ld      a, (glyph_slice)                        ; which slice of the letter are we printing
+        neg                                             ; glyph_slice counts down 8>0, we need 0-8
         add     a, 8                                    ; 
-        add     a, l                                    ; add as an offset into the buffer
+        add     a, l                                    ; add a as an offset into the buffer
         ld      l, a                                    ; put back into L
-        
-        ld      e, 255                                  ; x position to draw pixel line 
-        ld      d, 192-8
-        
+                                                        
+        ld      d,192-8
+        ld      a, (init_copper.layer2_xoffset-1)       ; we need to move x+1 with each line draw
+        ld      e, a
         call    get_xy_pos_l2                           ; DE = yx, get position and L2 page in
-        ld      b, 8                                    ; loop 7 times
+        ld      b, 8                                    ; loop 8 times
 
 vertical_copy:
         ld      a, (hl)                                 ; 7 copy one bye
@@ -70,7 +73,6 @@ vertical_copy:
 
     
 txt_position:           dw 0
-char_count:             db 0
 glyph_slice:            db 0 
 current_glyph:          dw 0
 xpos:                   dw 0 
@@ -80,15 +82,9 @@ tempcahar:
 scroller_text: 
 
         db      "HELLO ZX SPECTRUM NEXT FANS "
-        db      "HELLO ZX SPECTRUM NEXT FANS ",00
+        db      "Here we have your classic text scroller in its simplest form. "
+        db      "  We are using the copper to slide a horizontal slice of screen"
+        db      "  while at the same time printing text in slices along the way."
+        db      "  Anyway that's enough of that!      >>>>>  ",00
 
 
-
-scroll_l2_dma:
-
-        nextreg MMU0_0000_NR_50,22
-        ld      hl, 14337
-        ld      de, 14336
-        ld      bc, 8*256
-        call    TransferDMA
-        ret 
