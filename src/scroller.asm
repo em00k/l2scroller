@@ -7,7 +7,7 @@ init_scroller:
         
         ld      hl,scroller_text-1                      ; set to refresh char on first call
         ld      (txt_position),hl
-        ld      hl,glyph_slice                          ; check for new char 
+        ld      hl,glyph_slice                          ; slice counter 
         ld      (hl),1
         ret
 
@@ -16,12 +16,12 @@ update_scroller:
         ; updates the scroller 
 
         nextreg $50, 30                                 ; page in font 
-        ld      hl,glyph_slice                          ; update pixel count
+        ld      hl,glyph_slice                          ; update slice count
         dec     (hl)
         jr      nz,scroll_text
 
 new_char:
-        ld      (hl),8                                  ; reset pixel count
+        ld      (hl),8                                  ; reset slice count
         ld      hl,(txt_position)                       ; update current character
         inc     hl
         ld      (txt_position),hl
