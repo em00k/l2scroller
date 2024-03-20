@@ -710,7 +710,7 @@
   7+  81B7
   8+  81B7 21 5C 82             ld      hl,scroller_text-1                      ; set to refresh char on first call
   9+  81BA 22 16 82             ld      (txt_position),hl
- 10+  81BD 21 18 82             ld      hl,glyph_slice                          ; check for new char
+ 10+  81BD 21 18 82             ld      hl,glyph_slice                          ; slice counter
  11+  81C0 36 01                ld      (hl),1
  12+  81C2 C9                   ret
  13+  81C3
@@ -719,12 +719,12 @@
  16+  81C3                      ; updates the scroller
  17+  81C3
  18+  81C3 ED 91 50 1E          nextreg $50, 30                                 ; page in font
- 19+  81C7 21 18 82             ld      hl,glyph_slice                          ; update pixel count
+ 19+  81C7 21 18 82             ld      hl,glyph_slice                          ; update slice count
  20+  81CA 35                   dec     (hl)
  21+  81CB 20 28                jr      nz,scroll_text
  22+  81CD
  23+  81CD              new_char:
- 24+  81CD 36 08                ld      (hl),8                                  ; reset pixel count
+ 24+  81CD 36 08                ld      (hl),8                                  ; reset slice count
  25+  81CF 2A 16 82             ld      hl,(txt_position)                       ; update current character
  26+  81D2 23                   inc     hl
  27+  81D3 22 16 82             ld      (txt_position),hl

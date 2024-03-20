@@ -42,7 +42,7 @@ get_new_glyp:
 
         ex      de, hl                                  ; put letter into hl for source
         ld      de, tempcahar                           ; point de to a temp buffer
-        ld      bc, 63                                  ; size to copy 
+        ld      bc, 64                                  ; size to copy 
         ldir  
         
 
