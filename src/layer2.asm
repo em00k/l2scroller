@@ -228,7 +228,7 @@ straight_plot:
         ld      c,(ix+1)                                ; width
         ldir                                            ; copy line 
         ld      a, h                                    ; did we pass 16kb?
-        cp      $40
+        or      $80 | $40
         call    z,.nextbanks                            ; yes go to next bank 
         pop     bc                                      ; get back height
         ld      de, (.add1+1)                           ; get back yx 

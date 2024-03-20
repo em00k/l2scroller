@@ -41,14 +41,14 @@ get_new_glyp:
         ld      (current_glyph),de                      ; points to correct letter in font
 
         ex      de, hl                                  ; put letter into hl for source
-        ld      de, tempchar                           ; point de to a temp buffer
+        ld      de, tempchar                            ; point de to a temp buffer
         ld      bc, 64                                  ; size to copy 
         ldir  
         
 
 scroll_text: 
 
-        ld      hl, tempchar                           ; point to buffer
+        ld      hl, tempchar                            ; point to buffer
         ld      a, (glyph_slice)                        ; which slice of the letter are we printing
         neg                                             ; glyph_slice counts down 8>0, we need 0-8
         add     a, 8                                    ; 

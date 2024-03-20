@@ -19,7 +19,7 @@ wait_vblank.readline: EQU 0x00008370
 xpos: EQU 0x0000821B
 vertical_copy: EQU 0x0000820C
 init_copper.layer2_xoffset: EQU 0x000084FC
-tempcahar: EQU 0x0000821D
+tempchar: EQU 0x0000821D
 current_glyph: EQU 0x00008219
 get_new_glyp: EQU 0x000081E0
 new_char: EQU 0x000081CD

@@ -675,7 +675,7 @@
 228+  8186 DD 4E 01             ld      c,(ix+1)                                ; width
 229+  8189 ED B0                ldir                                            ; copy line
 230+  818B 7C                   ld      a, h                                    ; did we pass 16kb?
-231+  818C FE 40                cp      $40
+231+  818C F6 C0                or      $80 | $40
 232+  818E CC A6 81             call    z,.nextbanks                            ; yes go to next bank
 233+  8191 C1                   pop     bc                                      ; get back height
 234+  8192 ED 5B 7E 81          ld      de, (.add1+1)                           ; get back yx
@@ -744,14 +744,14 @@
  41+  81E8 ED 53 19 82          ld      (current_glyph),de                      ; points to correct letter in font
  42+  81EC
  43+  81EC EB                   ex      de, hl                                  ; put letter into hl for source
- 44+  81ED 11 1D 82             ld      de, tempcahar                           ; point de to a temp buffer
- 45+  81F0 01 3F 00             ld      bc, 63                                  ; size to copy
+ 44+  81ED 11 1D 82             ld      de, tempchar                            ; point de to a temp buffer
+ 45+  81F0 01 40 00             ld      bc, 64                                  ; size to copy
  46+  81F3 ED B0                ldir
  47+  81F5
  48+  81F5
  49+  81F5              scroll_text:
  50+  81F5
- 51+  81F5 21 1D 82             ld      hl, tempcahar                           ; point to buffer
+ 51+  81F5 21 1D 82             ld      hl, tempchar                            ; point to buffer
  52+  81F8 3A 18 82             ld      a, (glyph_slice)                        ; which slice of the letter are we printing
  53+  81FB ED 44                neg                                             ; glyph_slice counts down 8>0, we need 0-8
  54+  81FD C6 08                add     a, 8                                    ;
@@ -779,7 +779,7 @@
  76+  8218 00           glyph_slice:            db 0
  77+  8219 00 00        current_glyph:          dw 0
  78+  821B 00 00        xpos:                   dw 0
- 79+  821D              tempcahar:
+ 79+  821D              tempchar:
  80+  821D 00 00 00...                          ds      64,0
  81+  825D
  82+  825D              scroller_text:
