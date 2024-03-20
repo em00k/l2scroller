@@ -412,35 +412,36 @@
  49   8040
  50   8040              scroll_loop:
  51   8040
- 52   8040 3E 02                ld a,2
- 52   8042 D3 FE          out     ($fe), a                       ; colour bar to monitor performance
- 53   8044 CD C3 81             call    update_scroller                         ; update the scroller
- 54   8047 3E 07                ld a,7
- 54   8049 D3 FE          out     ($fe), a
- 55   804B CD A5 83             call    update_copper                           ; update the copper code
- 56   804E 3E 00                ld a,0
- 56   8050 D3 FE          out     ($fe), a
- 57   8052
- 58   8052 CD 6D 83             call    wait_vblank                             ; wait for vblank
- 59   8055
- 60   8055 C3 40 80             jp      scroll_loop                             ; repeatsville
- 61   8058
+ 52   8040
+ 53   8040 3E 02                ld a,2
+ 53   8042 D3 FE          out     ($fe), a                       ; colour bar to monitor performance
+ 54   8044 CD C3 81             call    update_scroller                         ; update the scroller
+ 55   8047 3E 07                ld a,7
+ 55   8049 D3 FE          out     ($fe), a
+ 56   804B CD A5 83             call    update_copper                           ; update the copper code
+ 57   804E 3E 00                ld a,0
+ 57   8050 D3 FE          out     ($fe), a
+ 58   8052 CD 6D 83             call    wait_vblank
+ 59   8055                                                 ; wait for vblank
+ 60   8055
+ 61   8055 C3 40 80             jp      scroll_loop                             ; repeatsville
  62   8058
- 63   8058              ;------------------------------------------------------------------------------
- 64   8058              ; Routines
- 65   8058
- 66   8058              setup_hardware:
- 67   8058 ED 91 07 03          nextreg TURBO_CONTROL_NR_07,3                   ; 28 mhz because
- 68   805C ED 91 4A 00          nextreg TRANSPARENCY_FALLBACK_COL_NR_4A,0       ; transparency black
- 69   8060 AF                   xor     a
- 69   8061 D3 FE          out     ($fe), a                    ; black border
- 70   8063
- 71   8063 C9                   ret
- 72   8064
- 73   8064              ;------------------------------------------------------------------------------
- 74   8064              ; Includes
- 75   8064
- 76   8064                      include "layer2.asm"
+ 63   8058
+ 64   8058              ;------------------------------------------------------------------------------
+ 65   8058              ; Routines
+ 66   8058
+ 67   8058              setup_hardware:
+ 68   8058 ED 91 07 03          nextreg TURBO_CONTROL_NR_07,3                   ; 28 mhz because
+ 69   805C ED 91 4A 00          nextreg TRANSPARENCY_FALLBACK_COL_NR_4A,0       ; transparency black
+ 70   8060 AF                   xor     a
+ 70   8061 D3 FE          out     ($fe), a                    ; black border
+ 71   8063
+ 72   8063 C9                   ret
+ 73   8064
+ 74   8064              ;------------------------------------------------------------------------------
+ 75   8064              ; Includes
+ 76   8064
+ 77   8064                      include "layer2.asm"
 # file opened: ./src/layer2.asm
   1+  8064              ;------------------------------------------------------------------------------
   2+  8064              ; layer2 routines
@@ -698,7 +699,7 @@
 252+  81B5 7C                   ld      a, h
 253+  81B6 C9                   ret
 # file closed: ./src/layer2.asm
- 77   81B7                      include "scroller.asm"
+ 78   81B7                      include "scroller.asm"
 # file opened: ./src/scroller.asm
   1+  81B7              ;------------------------------------------------------------------------------
   2+  81B7              ; scroller routines
@@ -853,7 +854,7 @@
  89+  8362
  90+  8362
 # file closed: ./src/scroller.asm
- 78   8362                      include "utils.asm"
+ 79   8362                      include "utils.asm"
 # file opened: ./src/utils.asm
   1+  8362
   2+  8362              ;------------------------------------------------------------------------------
@@ -864,118 +865,117 @@
   7+  8362              ; IN A > Register to read
   8+  8362              ; OUT A < Value of Register
   9+  8362
- 10+  8362 C5           		push    bc                                  ; save BC
- 11+  8363 01 3B 24     		ld      bc, TBBLUE_REGISTER_SELECT_P_243B
- 12+  8366 ED 79        		out     (c), a
- 13+  8368 04           		inc     b
- 14+  8369 ED 78        		in      a, (c)
- 15+  836B C1           		pop     bc
- 16+  836C C9           		ret
+ 10+  8362 C5                   push    bc
+ 11+  8363 01 3B 24             ld      bc, TBBLUE_REGISTER_SELECT_P_243B
+ 12+  8366 ED 79                out     (c), a
+ 13+  8368 04                   inc     b
+ 14+  8369 ED 78                in      a, (c)
+ 15+  836B C1                   pop     bc
+ 16+  836C C9                   ret
  17+  836D
  18+  836D              ; Vsync wait
  19+  836D
  20+  836D              wait_vblank:
- 21+  836D 21 01 00     		ld      hl, 1
+ 21+  836D 21 01 00             ld      hl, 1
  22+  8370              .readline:
- 23+  8370 3E 1F        		ld 		a,VIDEO_LINE_LSB_NR_1F
- 24+  8372 01 3B 24     		ld 		bc,TBBLUE_REGISTER_SELECT_P_243B
- 25+  8375 ED 79        		out 	(c),a
- 26+  8377 04           		inc 	b
- 27+  8378 ED 78        		in 		a,(c)
- 28+  837A FE C0        		cp 		192								; line to wait for 250
- 29+  837C 20 F2        		jr 		nz,.readline
- 30+  837E              		;dec 	hl
- 31+  837E              		;ld 		a,h
- 32+  837E              		;or 		l
- 33+  837E              		;jr 		nz,.readline
- 34+  837E C9           		ret
+ 23+  8370 3E 1F                ld      a,VIDEO_LINE_LSB_NR_1F
+ 24+  8372 01 3B 24             ld      bc,TBBLUE_REGISTER_SELECT_P_243B
+ 25+  8375 ED 79                out     (c),a
+ 26+  8377 04                   inc 	b
+ 27+  8378 ED 78                in      a,(c)
+ 28+  837A FE FA                cp      250                                     ; line to wait for 192
+ 29+  837C 20 F2                jr      nz,.readline
+ 30+  837E                      ;dec 	hl
+ 31+  837E                      ;ld 		a,h
+ 32+  837E                      ;or 		l
+ 33+  837E                      ;jr 		nz,.readline
+ 34+  837E C9                   ret
 # file closed: ./src/utils.asm
- 79   837F                      include "copper.asm"
+ 80   837F                      include "copper.asm"
 # file opened: ./src/copper.asm
   1+  837F              ;------------------------------------------------------------------------------
   2+  837F              ; copper routines
   3+  837F
   4+  837F              start_copper:
-  5+  837F              		; hl = copper list
-  6+  837F              		; bc = length
+  5+  837F                      ; hl = copper list
+  6+  837F                      ; bc = length
   7+  837F
-  8+  837F ED 91 62 00  		nextreg COPPER_CONTROL_HI_NR_62, 0	; stop
-  9+  8383 ED 91 61 00  		nextreg COPPER_CONTROL_LO_NR_61, 0
+  8+  837F ED 91 62 00          nextreg COPPER_CONTROL_HI_NR_62, 0	; stop
+  9+  8383 ED 91 61 00          nextreg COPPER_CONTROL_LO_NR_61, 0
  10+  8387
- 11+  8387 C5           		push 	bc
- 12+  8388 01 3B 24     		ld 		bc, TBBLUE_REGISTER_SELECT_P_243B
- 13+  838B 3E 60        		ld 		a, COPPER_DATA_NR_60
- 14+  838D ED 79        		out 	(c),a
- 15+  838F C1           		pop 	bc	; select copper data port
- 16+  8390 CD B1 83     		call 	TransferDMAPort
+ 11+  8387 C5                   push 	bc
+ 12+  8388 01 3B 24             ld 	bc, TBBLUE_REGISTER_SELECT_P_243B
+ 13+  838B 3E 60                ld	a, COPPER_DATA_NR_60
+ 14+  838D ED 79                out 	(c),a
+ 15+  838F C1                   pop 	bc	; select copper data port
+ 16+  8390 CD B1 83             call 	TransferDMAPort
  17+  8393
- 18+  8393 ED 91 62 C0  		nextreg COPPER_CONTROL_HI_NR_62, %11000000 ; start
- 19+  8397 ED 91 61 00  		nextreg COPPER_CONTROL_LO_NR_61, %00000000
- 20+  839B C9           		ret
+ 18+  8393 ED 91 62 C0          nextreg COPPER_CONTROL_HI_NR_62, %11000000 ; start
+ 19+  8397 ED 91 61 00          nextreg COPPER_CONTROL_LO_NR_61, %00000000
+ 20+  839B C9                   ret
  21+  839C
  22+  839C              stop_copper:
- 23+  839C ED 91 62 00  		nextreg COPPER_CONTROL_HI_NR_62, 0	; stop
- 24+  83A0 ED 91 61 00  		nextreg COPPER_CONTROL_LO_NR_61, 0
- 25+  83A4 C9           		ret
+ 23+  839C ED 91 62 00          nextreg COPPER_CONTROL_HI_NR_62, 0	; stop
+ 24+  83A0 ED 91 61 00          nextreg COPPER_CONTROL_LO_NR_61, 0
+ 25+  83A4 C9                   ret
  26+  83A5
  27+  83A5              update_copper:
  28+  83A5
  29+  83A5
- 30+  83A5 3A FB 84     		ld      a, (init_copper.layer2_xoffset-1)
+ 30+  83A5 3A FB 84             ld      a, (init_copper.layer2_xoffset-1)
  31+  83A8 3C                   inc     a
  32+  83A9
  33+  83A9 32 FB 84             ld      (init_copper.layer2_xoffset-1),a
  34+  83AC
- 35+  83AC CD EB 84     		call    init_copper
+ 35+  83AC CD EB 84             call    init_copper
  36+  83AF C9                   ret
  37+  83B0              .xpos:
  38+  83B0 00                   db      0
  39+  83B1
 # file closed: ./src/copper.asm
- 80   83B1                      include "dma.asm"
+ 81   83B1                      include "dma.asm"
 # file opened: ./src/dma.asm
   1+  83B1
   2+  83B1              ;------------------------------------------------------------------------------
-  3+  83B1              ; DMA
+  3+  83B1              ; DMA routines
   4+  83B1
-  5+  83B1
-  6+  83B1              ;===========================================================================
-  7+  83B1              ; hl = source
-  8+  83B1              ; bc = length
-  9+  83B1              ; set port to write to with NEXTREG_REGISTER_SELECT_PORT
- 10+  83B1              ; prior to call
- 11+  83B1              ;===========================================================================
- 12+  83B1              TransferDMAPort
- 13+  83B1 22 C4 83     		ld 		(.dmaSource),hl
- 14+  83B4 ED 43 C6 83  		ld 		(.dmaLength),bc
- 15+  83B8 21 C2 83     		ld 		hl,.dmaCode
- 16+  83BB 06 10        		ld 		b,.dmaCodeLen
- 17+  83BD 0E 6B        		ld 		c,Z80_DMA_PORT_DATAGEAR
- 18+  83BF ED B3        		otir
- 19+  83C1 C9           		ret
- 20+  83C2              ;===========================================================================
- 21+  83C2              ;
- 22+  83C2              ;===========================================================================
- 23+  83C2              .dmaCode
- 24+  83C2 83           		db 		DMA_DISABLE
- 25+  83C3 7D           		db 		%01111101				;R0-Transfer mode, A -> B, write adress + block length
- 26+  83C4              .dmaSource
- 27+  83C4 00 00        		dw 		0						;R0-Port A, Start address				(source address)
- 28+  83C6              .dmaLength
- 29+  83C6 00 00        		dw 		0						;R0-Block length					(length in bytes)
- 30+  83C8 54           		db 		%01010100				;R1-read A time byte, increment, to memory, bitmask
- 31+  83C9 02           		db 		%00000010				;R1-Cycle length port A
- 32+  83CA 68           		db 		%01101000				;R2-write B time byte, increment, to memory, bitmask
- 33+  83CB 02           		db 		%00000010				;R2-Cycle length port B
- 34+  83CC AD           		db 		%10101101 				;R4-Continuous mode  (use this for block tansfer), write dest adress
- 35+  83CD 3B 25        		dw 		$253b					;R4-Dest address					(destination address)
- 36+  83CF 82           		db 		%10000010				;R5-Restart on end of block, RDY active LOW
- 37+  83D0 CF           		db 		DMA_LOAD					;R6-Load
- 38+  83D1 87           		db 		DMA_ENABLE				;R6-Enable DMA
- 39+  83D2              .dmaCodeLen	equ $-.dmaCode
- 40+  83D2
+  5+  83B1              ;===========================================================================
+  6+  83B1              ; hl = source
+  7+  83B1              ; bc = length
+  8+  83B1              ; set port to write to with NEXTREG_REGISTER_SELECT_PORT
+  9+  83B1              ; prior to call
+ 10+  83B1              ;===========================================================================
+ 11+  83B1              TransferDMAPort
+ 12+  83B1 22 C4 83             ld      (.dmaSource),hl
+ 13+  83B4 ED 43 C6 83          ld      (.dmaLength),bc
+ 14+  83B8 21 C2 83             ld      hl,.dmaCode
+ 15+  83BB 06 10                ld      b,.dmaCodeLen
+ 16+  83BD 0E 6B                ld      c,Z80_DMA_PORT_DATAGEAR
+ 17+  83BF ED B3                otir
+ 18+  83C1 C9                   ret
+ 19+  83C2              ;===========================================================================
+ 20+  83C2              ;
+ 21+  83C2              ;===========================================================================
+ 22+  83C2              .dmaCode
+ 23+  83C2 83                   db      DMA_DISABLE
+ 24+  83C3 7D                   db      %01111101				;R0-Transfer mode, A -> B, write adress + block length
+ 25+  83C4              .dmaSource
+ 26+  83C4 00 00                dw      0					;R0-Port A, Start address				(source address)
+ 27+  83C6              .dmaLength
+ 28+  83C6 00 00                dw 	0					;R0-Block length					(length in bytes)
+ 29+  83C8 54                   db 	%01010100				;R1-read A time byte, increment, to memory, bitmask
+ 30+  83C9 02                   db 	%00000010				;R1-Cycle length port A
+ 31+  83CA 68                   db 	%01101000				;R2-write B time byte, increment, to memory, bitmask
+ 32+  83CB 02                   db 	%00000010				;R2-Cycle length port B
+ 33+  83CC AD                   db 	%10101101 				;R4-Continuous mode  (use this for block tansfer), write dest adress
+ 34+  83CD 3B 25                dw 	$253b					;R4-Dest address					(destination address)
+ 35+  83CF 82                   db 	%10000010				;R5-Restart on end of block, RDY active LOW
+ 36+  83D0 CF                   db 	DMA_LOAD				;R6-Load
+ 37+  83D1 87                   db 	DMA_ENABLE				;R6-Enable DMA
+ 38+  83D2              .dmaCodeLen	equ $-.dmaCode
+ 39+  83D2
 # file closed: ./src/dma.asm
- 81   83D2                      include "tables.asm"
+ 82   83D2                      include "tables.asm"
 # file opened: ./src/tables.asm
   1+  83D2              ;------------------------------------------------------------------------------
   2+  83D2              ; logo data
@@ -1076,7 +1076,7 @@
  49+  84E7 04 04 04 04
  50+  84EB
 # file closed: ./src/tables.asm
- 82   84EB                      include "copper_settings.asm"
+ 83   84EB                      include "copper_settings.asm"
 # file opened: ./src/copper_settings.asm
   1+  84EB              ;------------------------------------------------------------------------------
   2+  84EB              ; copper settings
@@ -1084,64 +1084,66 @@
   4+  84EB              COPPER_WAIT				= %10000000
   5+  84EB
   6+  84EB              init_copper:
-  7+  84EB 01 0E 00     		ld 		bc, .copperend-.copper
-  8+  84EE 21 F4 84     		ld 		hl, .copper
-  9+  84F1 C3 7F 83     		jp 		start_copper
+  7+  84EB 01 0E 00             ld      bc, .copperend-.copper
+  8+  84EE 21 F4 84             ld      hl, .copper
+  9+  84F1 C3 7F 83             jp      start_copper
  10+  84F4              .copper
- 11+  84F4 80 00 16 00  		db 		COPPER_WAIT, 0,  LAYER2_XOFFSET_NR_16 ,0
- 12+  84F8 80 B8 16 00  		db 		COPPER_WAIT, 192-8,  LAYER2_XOFFSET_NR_16 ,0
- 13+  84FC              .layer2_xoffset:
- 14+  84FC
- 15+  84FC 80 C0 16 00  		db 		COPPER_WAIT, 192, LAYER2_XOFFSET_NR_16,0
- 16+  8500
- 17+  8500 FF FF        		dw 		$ffff
- 18+  8502              .copperend
+ 11+  84F4 80 00 16 00          db      COPPER_WAIT, 0,  LAYER2_XOFFSET_NR_16 ,0
+ 12+  84F8               ;       db      COPPER_WAIT, 1,  TRANSPARENCY_FALLBACK_COL_NR_4A ,55
+ 13+  84F8               ;       db      COPPER_WAIT, 5,  TRANSPARENCY_FALLBACK_COL_NR_4A ,155
+ 14+  84F8 80 B8 16 00          db      COPPER_WAIT, 192-8,  LAYER2_XOFFSET_NR_16 ,0
+ 15+  84FC              .layer2_xoffset:
+ 16+  84FC
+ 17+  84FC 80 C0 16 00          db      COPPER_WAIT, 192, LAYER2_XOFFSET_NR_16,0
+ 18+  8500
+ 19+  8500 FF FF                dw      $ffff
+ 20+  8502              .copperend
 # file closed: ./src/copper_settings.asm
- 83   8502
- 84   8502              ;------------------------------------------------------------------------------
- 85   8502              ; Stack reservation
- 86   8502              STACK_SIZE      equ     100
- 87   8502
- 88   8502              stack_bottom:
- 89   8502 00 00 00...          defs    STACK_SIZE * 2
- 90   85CA              stack_top:
- 91   85CA 00 00                defw    0
- 92   85CC
- 93   85CC              ;------------------------------------------------------------------------------
- 94   85CC              ; Banked includes
- 95   85CC
- 96   85CC                      org     $e000
- 97   E000                      mmu     7 n, 30
- 98   E000                      incbin  "data/font.nxt"                         ; 256 colour font
- 99   F680
-100   F680                      org     $e000
-101   E000                      mmu     7 n, 32
-102   E000                      incbin  "data/emk1.snk"                         ; snake format
-103   EC02                      incbin  "data/ZXNEXT_64x64.snk"
-104   FC04
-105   FC04                      org     $e000
-106   E000                      mmu     7 n, 33
-107   E000                      incbin  "data/emk1.raw"                         ; em00k logo
-108   EC02                      incbin  "data/ZXNEXT_64x64.raw"                 ; test pattern 64x6x
-109   FC02                      org     $e000
-110   E000
-111   E000                      mmu     7 n, 34
-112   E000                      incbin  "data/ZXNEXT_128x128.raw"               ; test pattern 128x128
-113   E002                      org     $e000
-114   E000
-115   E000                      mmu     7 n, 36
-116   E000                      incbin  "data/ZX NEXT_256x192.raw"              ; test pattern 256x192
-117   E002
-118   E002                      mmu     7 n, 37
-119   E002                      incbin  "data/RGB_s.raw"                        ; squawk!
-120   F002
+ 84   8502
+ 85   8502              ;------------------------------------------------------------------------------
+ 86   8502              ; Stack reservation
+ 87   8502              STACK_SIZE      equ     100
+ 88   8502
+ 89   8502              stack_bottom:
+ 90   8502 00 00 00...          defs    STACK_SIZE * 2
+ 91   85CA              stack_top:
+ 92   85CA 00 00                defw    0
+ 93   85CC
+ 94   85CC              ;------------------------------------------------------------------------------
+ 95   85CC              ; Banked includes
+ 96   85CC
+ 97   85CC                      org     $e000
+ 98   E000                      mmu     7 n, 30
+ 99   E000                      incbin  "data/font.nxt"                         ; 256 colour font
+100   F7C0
+101   F7C0                      org     $e000
+102   E000                      mmu     7 n, 32
+103   E000                      incbin  "data/emk1.snk"                         ; snake format
+104   EC02                      incbin  "data/ZXNEXT_64x64.snk"
+105   FC04
+106   FC04                      org     $e000
+107   E000                      mmu     7 n, 33
+108   E000                      incbin  "data/emk1.raw"                         ; em00k logo
+109   EC02                      incbin  "data/ZXNEXT_64x64.raw"                 ; test pattern 64x6x
+110   FC02                      org     $e000
+111   E000
+112   E000                      mmu     7 n, 34
+113   E000                      incbin  "data/ZXNEXT_128x128.raw"               ; test pattern 128x128
+114   E002                      org     $e000
+115   E000
+116   E000                      mmu     7 n, 36
+117   E000                      incbin  "data/ZX NEXT_256x192.raw"              ; test pattern 256x192
+118   E002
+119   E002                      mmu     7 n, 37
+120   E002                      incbin  "data/RGB_s.raw"                        ; squawk!
 121   F002
-122   F002              ;------------------------------------------------------------------------------
-123   F002              ; Output configuration
-124   F002
-125   F002                      SAVENEX OPEN "l2scroller.nex", main, stack_top
-126   F002                      SAVENEX CORE 2,0,0
-127   F002                      SAVENEX CFG 7,0,0,0
-128   F002                      SAVENEX AUTO
-129   F002                      SAVENEX CLOSE
+122   F002
+123   F002              ;------------------------------------------------------------------------------
+124   F002              ; Output configuration
+125   F002
+126   F002                      SAVENEX OPEN "l2scroller.nex", main, stack_top
+127   F002                      SAVENEX CORE 2,0,0
+128   F002                      SAVENEX CFG 7,0,0,0
+129   F002                      SAVENEX AUTO
+130   F002                      SAVENEX CLOSE
 # file closed: ./src/main.asm

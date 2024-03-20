@@ -48,14 +48,15 @@ main:
         call    init_scroller                           ; initialise the scroller
 
 scroll_loop: 
+
         
         ld a,2 : out     ($fe), a                       ; colour bar to monitor performance 
         call    update_scroller                         ; update the scroller
         ld a,7 : out     ($fe), a   
         call    update_copper                           ; update the copper code 
         ld a,0 : out     ($fe), a 
-        
-        call    wait_vblank                             ; wait for vblank
+        call    wait_vblank  
+                                   ; wait for vblank
         
         jp      scroll_loop                             ; repeatsville
 
