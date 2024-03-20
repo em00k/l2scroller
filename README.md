@@ -9,3 +9,4 @@ there are some tests for snaking data quickly to L2 but so far I found
 typewriter method to be quickest. i have not yet tried using the dma 
 to blast lines but may update to that. 
 
+![image](https://github.com/em00k/l2scroller/assets/22205516/310c8381-cbcc-495e-bf7f-cf94bc468ebc)
